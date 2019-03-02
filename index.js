@@ -37,6 +37,7 @@ serverSocket.on('message', function (msg, rinfo) {
     const client = dgram.createSocket('udp4');
     client.on('error', (err) => {
         console.log(`client error:\n${err.stack}`);
+        cacheHost = null;
         client.close()
     });
     client.on('message', (fbMsg) => {
