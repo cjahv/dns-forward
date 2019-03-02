@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const dgram = require('dgram');
 const serverSocket = dgram.createSocket('udp4');
 const {Resolver} = require('dns');
