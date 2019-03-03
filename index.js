@@ -23,12 +23,14 @@ const isDomain = !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
 let cacheHost = null;
 
 function refreshCache(callback) {
+    console.log('refresh host', host);
     resolver.resolve4(host, (err, addressList) => {
         if (err) return callback(false);
         if (addressList.length === 0) return callback(false);
         const address = addressList[0];
         if (address === cacheHost) return callback(false);
         cacheHost = address;
+        console.log(`new address is ${address}`);
         callback(true);
     });
 }
@@ -53,11 +55,13 @@ serverSocket.on('message', function (msg, rinfo) {
                     client.send(msg, port, cacheHost, (err) => {
                         if (err) {
                             console.log(err);
+                            cacheHost = null;
                             client.close()
                         }
                     });
                 } else {
                     console.log(`client error: analysis ${host} fail!`);
+                    cacheHost = null;
                     client.close()
                 }
             })
@@ -65,6 +69,7 @@ serverSocket.on('message', function (msg, rinfo) {
             client.send(msg, port, cacheHost, (err) => {
                 if (err) {
                     console.log(err);
+                    cacheHost = null;
                     client.close()
                 }
             });
