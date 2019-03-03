@@ -45,6 +45,8 @@ function refreshCache(callback) {
 
 serverSocket.on('message', function (msg, rinfo) {
     const client = dgram.createSocket('udp4');
+    let clientClosed = false;
+    let clientTimer;
     client.on('error', (err) => {
         console.error('client error:\n', err.stack);
         cacheHost = null;
@@ -56,6 +58,18 @@ serverSocket.on('message', function (msg, rinfo) {
             err && console.error(err)
         });
         client.close()
+    });
+    client.on('close', function () {
+        clientClosed = true;
+        if (clientTimer) clearTimeout(clientTimer);
+    });
+    client.on('listening', function () {
+        clientTimer = setTimeout(function () {
+            if (clientClosed === false) {
+                cacheHost = null;
+                client.close();
+            }
+        }, 3000)
     });
     if (isDomain) {
         if (!cacheHost) {
@@ -91,6 +105,7 @@ serverSocket.on('message', function (msg, rinfo) {
             }
         });
     }
+
 });
 
 serverSocket.on('error', function (err) {
