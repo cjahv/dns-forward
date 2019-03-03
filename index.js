@@ -4,6 +4,8 @@ const serverSocket = dgram.createSocket('udp4');
 const {Resolver} = require('dns');
 const resolver = new Resolver();
 
+const debug = process.env.DEBUG;
+
 const dns = process.argv[process.argv.indexOf('-d') + 1];
 if (!dns || dns === process.argv[0]) {
     console.error('use -d set upstream dns');
@@ -22,15 +24,21 @@ const [host, port] = forward.includes(':') ? forward.split(':').map((v, i) => i 
 const isDomain = !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
 let cacheHost = null;
 
+function log() {
+    if (debug) {
+        console.log.call(console, arguments)
+    }
+}
+
 function refreshCache(callback) {
-    console.log('refresh host', host);
+    log('refresh host', host);
     resolver.resolve4(host, (err, addressList) => {
         if (err) return callback(false);
         if (addressList.length === 0) return callback(false);
         const address = addressList[0];
         if (address === cacheHost) return callback(false);
         cacheHost = address;
-        console.log(`new address is ${address}`);
+        log('new address is', address);
         callback(true);
     });
 }
@@ -38,13 +46,14 @@ function refreshCache(callback) {
 serverSocket.on('message', function (msg, rinfo) {
     const client = dgram.createSocket('udp4');
     client.on('error', (err) => {
-        console.log(`client error:\n${err.stack}`);
+        console.error('client error:\n', err.stack);
         cacheHost = null;
         client.close()
     });
     client.on('message', (fbMsg) => {
+        log('on message', rinfo.address);
         serverSocket.send(fbMsg, rinfo.port, rinfo.address, (err) => {
-            err && console.log(err)
+            err && console.error(err)
         });
         client.close()
     });
@@ -54,13 +63,13 @@ serverSocket.on('message', function (msg, rinfo) {
                 if (res) {
                     client.send(msg, port, cacheHost, (err) => {
                         if (err) {
-                            console.log(err);
+                            console.error(err);
                             cacheHost = null;
                             client.close()
                         }
                     });
                 } else {
-                    console.log(`client error: analysis ${host} fail!`);
+                    log(`client error: analysis ${host} fail!`);
                     cacheHost = null;
                     client.close()
                 }
@@ -68,7 +77,7 @@ serverSocket.on('message', function (msg, rinfo) {
         } else {
             client.send(msg, port, cacheHost, (err) => {
                 if (err) {
-                    console.log(err);
+                    console.error(err);
                     cacheHost = null;
                     client.close()
                 }
@@ -77,7 +86,7 @@ serverSocket.on('message', function (msg, rinfo) {
     } else {
         client.send(msg, port, host, (err) => {
             if (err) {
-                console.log(err);
+                console.error(err);
                 client.close()
             }
         });
@@ -85,12 +94,12 @@ serverSocket.on('message', function (msg, rinfo) {
 });
 
 serverSocket.on('error', function (err) {
-    console.log('error, msg - %s, stack - %s\n', err.message, err.stack);
+    log('error, msg - %s, stack - %s\n', err.message, err.stack);
 });
 
 serverSocket.on('listening', function () {
-    console.log(`server is listening on port ${serverSocket.address().port}.`);
-    console.log(`forward to: ${host}:${port}${isDomain ? ' (domain)' : ''}`)
+    log(`server is listening on port ${serverSocket.address().port}.`);
+    log(`forward to: ${host}:${port}${isDomain ? ' (domain)' : ''}`)
 });
 
 serverSocket.bind(parseInt(process.argv[process.argv.indexOf('-p') + 1]) || 5353);
