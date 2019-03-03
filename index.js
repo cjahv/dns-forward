@@ -26,7 +26,7 @@ let cacheHost = null;
 
 function log() {
     if (debug) {
-        console.log.apply(console, arguments)
+        console.log(...arguments)
     }
 }
 
